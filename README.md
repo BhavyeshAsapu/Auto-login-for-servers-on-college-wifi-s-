@@ -243,7 +243,7 @@ Perfect for:
 
 ## 📜 License
 
-//MIT License
+MIT License
 
 ---
 
