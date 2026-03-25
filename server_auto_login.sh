@@ -49,9 +49,25 @@ log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
+host_matches_domain() {
+  local url_host url_domain match_domain
+  url_host="${1#*://}"
+  url_host="${url_host%%/*}"
+  url_host="${url_host%%:*}"
+
+  url_domain="$(echo "$url_host" | tr '[:upper:]' '[:lower:]')"
+  match_domain="$(echo "$CAPTIVE_MATCH_DOMAIN" | tr '[:upper:]' '[:lower:]')"
+
+  [ "$url_domain" = "$match_domain" ] && return 0
+  case "$url_domain" in
+    *."$match_domain") return 0 ;;
+  esac
+  return 1
+}
+
 is_authenticated() {
   local result status_code final_url
-  result="$(curl -sS -L --max-time "$CURL_TIMEOUT" -o /dev/null -w '%{http_code} %{url_effective}' "$CHECK_URL" 2>/dev/null || true)"
+  result="$(curl -sS -L --proto '=http,https' --max-time "$CURL_TIMEOUT" -o /dev/null -w '%{http_code} %{url_effective}' "$CHECK_URL" 2>/dev/null || true)"
   [ -n "$result" ] || return 1
 
   status_code="${result%% *}"
@@ -61,7 +77,7 @@ is_authenticated() {
     return 0
   fi
 
-  if [ -n "$CAPTIVE_MATCH_DOMAIN" ] && echo "$final_url" | grep -Fqi "$CAPTIVE_MATCH_DOMAIN"; then
+  if [ -n "$CAPTIVE_MATCH_DOMAIN" ] && host_matches_domain "$final_url"; then
     return 1
   fi
 
@@ -72,17 +88,19 @@ login_captive_portal() {
   local curl_args=(
     -sS
     -L
+    --proto '=http,https'
     --max-time "$CURL_TIMEOUT"
     -X POST "$CAPTIVE_LOGIN_URL"
-    --data-urlencode "${CAPTIVE_USER_FIELD}=${CAPTIVE_USERNAME}"
-    --data-urlencode "${CAPTIVE_PASS_FIELD}=${CAPTIVE_PASSWORD}"
   )
 
   if [ "${CAPTIVE_INSECURE_TLS:-false}" = "true" ]; then
     curl_args+=(-k)
   fi
 
-  curl "${curl_args[@]}" -o /dev/null || true
+  curl "${curl_args[@]}" -K - -o /dev/null <<EOF || true
+data-urlencode = "${CAPTIVE_USER_FIELD}=${CAPTIVE_USERNAME}"
+data-urlencode = "${CAPTIVE_PASS_FIELD}=${CAPTIVE_PASSWORD}"
+EOF
 }
 
 log "Starting captive portal auto-login monitor"

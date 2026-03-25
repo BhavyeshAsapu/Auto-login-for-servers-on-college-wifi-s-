@@ -131,7 +131,11 @@ Then enable it:
 
 ```bash
 sudo install -d -m 700 /etc/captive-portal
-sudo sh -c 'printf "CAPTIVE_USERNAME=YOUR_USERNAME\nCAPTIVE_PASSWORD=YOUR_PASSWORD\n" > /etc/captive-portal/credentials.env'
+sudo install -m 600 /dev/null /etc/captive-portal/credentials.env
+sudo nano /etc/captive-portal/credentials.env
+# Add:
+# CAPTIVE_USERNAME=YOUR_USERNAME
+# CAPTIVE_PASSWORD=YOUR_PASSWORD
 sudo chmod 600 /etc/captive-portal/credentials.env
 sudo systemctl daemon-reload
 sudo systemctl enable --now captive-portal-autologin.service
